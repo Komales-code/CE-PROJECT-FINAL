@@ -1,70 +1,55 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 
-# Page configuration
-st.set_page_config(page_title="Traffic Light Optimization using ES", layout="centered")
-
-st.title("🚦 Traffic Light Optimization using Evolutionary Strategy (ES)")
-
-# Load dataset
-df = pd.read_csv("traffic_dataset.csv")
-
-st.subheader("📊 Traffic Dataset Preview")
-st.dataframe(df.head())
-
-# Baseline performance
-baseline_waiting = df['waiting_time'].mean()
-
-st.subheader("⏱ Baseline Traffic Performance")
-st.metric(label="Average Waiting Time (Before Optimization)", 
-          value=f"{baseline_waiting:.2f} seconds")
-
-# User input: optimized value from ES
-st.subheader("⚙️ ES Optimization Result")
-optimized_waiting = st.slider(
-    "Optimized Average Waiting Time (seconds)",
-    min_value=0.0,
-    max_value=baseline_waiting,
-    value=baseline_waiting * 0.6
+# ---------------- Page Config ----------------
+st.set_page_config(
+    page_title="Traffic Light Optimization (ES)",
+    layout="wide"
 )
 
-# Bar chart comparison
-st.subheader("📉 Waiting Time Comparison")
+st.title("🚦 Traffic Light Optimization using Evolutionary Strategy (ES)")
+st.markdown("Optimizing traffic signal timings to reduce congestion")
 
-fig1, ax1 = plt.subplots()
-ax1.bar(["Before Optimization", "After ES Optimization"],
-        [baseline_waiting, optimized_waiting])
-ax1.set_ylabel("Average Waiting Time (seconds)")
-ax1.set_title("Average Waiting Time Before and After ES")
-st.pyplot(fig1)
+# ---------------- Load Dataset ----------------
+df = pd.read_csv("traffic_dataset.csv")
+baseline_waiting = df["waiting_time"].mean()
 
-# Waiting time distribution
-st.subheader("📈 Waiting Time Distribution (Dataset)")
+# ---------------- Sidebar Controls ----------------
+st.sidebar.header("⚙️ ES Algorithm Parameters")
 
-fig2, ax2 = plt.subplots()
-ax2.hist(df['waiting_time'], bins=20)
-ax2.set_xlabel("Waiting Time (seconds)")
-ax2.set_ylabel("Frequency")
-ax2.set_title("Distribution of Vehicle Waiting Time")
-st.pyplot(fig2)
+population_size = st.sidebar.slider(
+    "Population Size (μ)",
+    min_value=10,
+    max_value=100,
+    value=30,
+    step=10
+)
 
-# ES convergence curve (example fitness history)
-st.subheader("📉 ES Convergence Curve")
+mutation_strength = st.sidebar.slider(
+    "Mutation Strength (σ)",
+    min_value=0.1,
+    max_value=2.0,
+    value=0.8,
+    step=0.1
+)
 
-fitness_history = [
-    140, 132, 125, 118, 110, 104, 99, 95, 92, 89,
-    87, 85, 84, 83, 82, 81, 80.5, 80, 79.8, 79.5
-]
+generations = st.sidebar.slider(
+    "Number of Generations",
+    min_value=10,
+    max_value=100,
+    value=40,
+    step=10
+)
 
-generations = list(range(1, len(fitness_history) + 1))
+# ---------------- Simulated ES Behaviour ----------------
+np.random.seed(42)
 
-fig3, ax3 = plt.subplots()
-ax3.plot(generations, fitness_history)
-ax3.set_xlabel("Generation")
-ax3.set_ylabel("Fitness Value")
-ax3.set_title("Convergence Curve of Evolutionary Strategy")
-ax3.grid(True)
-st.pyplot(fig3)
+fitness_history = []
+current_fitness = baseline_waiting * 2
 
-st.success("✅ Streamlit Dashboard Successfully Displays ES Optimization Results")
+for g in range(generations):
+    improvement = np.random.normal(loc=mutation_strength, scale=0.3)
+    current_fitness = max(current_fitness - improvement, baseline_waiting * 0.4)
+    fitness_history.append(cur_
