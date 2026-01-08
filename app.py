@@ -3,108 +3,139 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ---------------- Page Config ----------------
-st.set_page_config(page_title="Traffic Light Optimization (ES)", layout="wide")
+# -------------------------------
+# Page Config
+# -------------------------------
+st.set_page_config(
+    page_title="Traffic Signal Optimization using ES",
+    layout="wide"
+)
 
-st.title("🚦 Traffic Light Optimization using Evolutionary Strategy (ES)")
-st.markdown("Dynamic optimization of traffic signal timings using real ES computation")
+st.title("🚦 Traffic Signal Optimization using Evolution Strategy (ES)")
+st.write("This application optimizes traffic signal green time to reduce congestion using Evolution Strategy.")
 
-# ---------------- Load Dataset ----------------
-df = pd.read_csv("traffic_dataset.csv")
-baseline_waiting = df["waiting_time"].mean()
+# -------------------------------
+# Load Dataset
+# -------------------------------
+@st.cache_data
+def load_data():
+    return pd.read_csv("traffic_dataset (1).csv")
 
-# ---------------- Sidebar Controls ----------------
-st.sidebar.header("⚙️ ES Parameters")
+data = load_data()
 
-population_size = st.sidebar.slider("Population Size (μ)", 10, 100, 30, 10)
-mutation_strength = st.sidebar.slider("Mutation Strength (σ)", 0.01, 1.0, 0.2, 0.01)
-generations = st.sidebar.slider("Generations", 10, 100, 40, 10)
+st.subheader("📊 Traffic Dataset Preview")
+st.dataframe(data.head())
 
-# ---------------- Fitness Function ----------------
-def fitness_function(multiplier):
+# -------------------------------
+# Baseline Metrics
+# -------------------------------
+baseline_waiting_time = data["waiting_time"].mean()
+
+st.subheader("⏱ Baseline Traffic Performance")
+st.metric("Average Waiting Time (seconds)", f"{baseline_waiting_time:.2f}")
+
+# -------------------------------
+# Evolution Strategy Parameters
+# -------------------------------
+st.sidebar.header("⚙️ Evolution Strategy Parameters")
+
+generations = st.sidebar.slider("Number of Generations", 20, 200, 100)
+sigma = st.sidebar.slider("Mutation Step Size (σ)", 0.1, 10.0, 1.0)
+min_green = st.sidebar.slider("Minimum Green Time (s)", 10, 30, 15)
+max_green = st.sidebar.slider("Maximum Green Time (s)", 40, 120, 60)
+
+# -------------------------------
+# Fitness Function
+# -------------------------------
+def fitness_function(green_time, baseline_wait):
     """
-    Simulated waiting time based on signal timing multiplier
+    Simulated fitness function:
+    - Assumes better green time allocation reduces waiting time
     """
-    adjusted_waiting = baseline_waiting / multiplier
-    noise = np.random.normal(0, 1)
-    return max(adjusted_waiting + noise, 0)
+    reduction_factor = np.exp(-green_time / max_green)
+    optimized_wait = baseline_wait * reduction_factor
+    return optimized_wait
 
-# ---------------- Evolutionary Strategy ----------------
-def evolutionary_strategy():
-    population = np.random.uniform(0.5, 2.0, population_size)
-    fitness_history = []
+# -------------------------------
+# Evolution Strategy (1+1)
+# -------------------------------
+def evolution_strategy():
+    parent = np.random.uniform(min_green, max_green)
+    parent_fitness = fitness_function(parent, baseline_waiting_time)
+
+    best_fitness_history = []
+    best_solution_history = []
 
     for _ in range(generations):
-        fitness_values = np.array([fitness_function(x) for x in population])
-        best_index = np.argmin(fitness_values)
-        best_solution = population[best_index]
-        best_fitness = fitness_values[best_index]
+        offspring = parent + np.random.normal(0, sigma)
+        offspring = np.clip(offspring, min_green, max_green)
 
-        fitness_history.append(best_fitness)
+        offspring_fitness = fitness_function(offspring, baseline_waiting_time)
 
-        # Mutation
-        population = best_solution + mutation_strength * np.random.randn(population_size)
-        population = np.clip(population, 0.5, 2.0)
+        if offspring_fitness < parent_fitness:
+            parent, parent_fitness = offspring, offspring_fitness
 
-    return best_solution, best_fitness, fitness_history
+        best_fitness_history.append(parent_fitness)
+        best_solution_history.append(parent)
 
-# ---------------- Run Optimization ----------------
-best_multiplier, optimized_waiting, fitness_history = evolutionary_strategy()
+    return parent, parent_fitness, best_fitness_history, best_solution_history
 
-# ---------------- KPI Section ----------------
-st.subheader("📊 Performance Summary")
+# -------------------------------
+# Run Optimization
+# -------------------------------
+if st.button("▶ Run Evolution Strategy Optimization"):
+    best_green, best_fitness, fitness_curve, solution_curve = evolution_strategy()
 
-col1, col2, col3 = st.columns(3)
+    improvement = ((baseline_waiting_time - best_fitness) / baseline_waiting_time) * 100
 
-col1.metric("Baseline Waiting Time", f"{baseline_waiting:.2f} s")
+    st.subheader("✅ Optimization Results")
 
-col2.metric(
-    "Optimized Waiting Time",
-    f"{optimized_waiting:.2f} s",
-    delta=f"-{baseline_waiting - optimized_waiting:.2f} s"
-)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Optimized Green Time (s)", f"{best_green:.2f}")
+    col2.metric("Optimized Waiting Time (s)", f"{best_fitness:.2f}")
+    col3.metric("Improvement (%)", f"{improvement:.2f}%")
 
-improvement = ((baseline_waiting - optimized_waiting) / baseline_waiting) * 100
-col3.metric("Improvement", f"{improvement:.1f} %")
+    # -------------------------------
+    # Results Table
+    # -------------------------------
+    result_df = pd.DataFrame({
+        "Metric": ["Average Waiting Time (s)"],
+        "Before ES": [baseline_waiting_time],
+        "After ES": [best_fitness]
+    })
 
-# ---------------- Charts ----------------
-st.subheader("📉 Optimization Results")
+    st.subheader("📋 Performance Comparison Table")
+    st.table(result_df)
 
-col4, col5 = st.columns(2)
+    # -------------------------------
+    # Convergence Curve
+    # -------------------------------
+    st.subheader("📉 ES Convergence Curve")
 
-# Convergence Curve
-with col4:
-    fig1, ax1 = plt.subplots()
-    ax1.plot(range(1, generations + 1), fitness_history)
-    ax1.set_xlabel("Generation")
-    ax1.set_ylabel("Fitness (Waiting Time)")
-    ax1.set_title("ES Convergence Curve")
-    ax1.grid(True)
-    st.pyplot(fig1)
+    fig, ax = plt.subplots()
+    ax.plot(fitness_curve)
+    ax.set_xlabel("Generation")
+    ax.set_ylabel("Fitness (Waiting Time)")
+    ax.set_title("Evolution Strategy Convergence")
 
-# Before vs After
-with col5:
+    st.pyplot(fig)
+
+    # -------------------------------
+    # Solution Evolution
+    # -------------------------------
+    st.subheader("🧬 Evolution of Green Time")
+
     fig2, ax2 = plt.subplots()
-    ax2.bar(
-        ["Before Optimization", "After ES"],
-        [baseline_waiting, optimized_waiting]
-    )
-    ax2.set_ylabel("Average Waiting Time (seconds)")
-    ax2.set_title("Waiting Time Comparison")
+    ax2.plot(solution_curve)
+    ax2.set_xlabel("Generation")
+    ax2.set_ylabel("Green Time (s)")
+    ax2.set_title("Green Time Adjustment over Generations")
+
     st.pyplot(fig2)
 
-# ---------------- Dataset Insight ----------------
-st.subheader("📈 Traffic Waiting Time Distribution")
-
-fig3, ax3 = plt.subplots()
-ax3.hist(df["waiting_time"], bins=20)
-ax3.set_xlabel("Waiting Time (seconds)")
-ax3.set_ylabel("Frequency")
-ax3.set_title("Dataset Waiting Time Distribution")
-st.pyplot(fig3)
-
-# ---------------- Explanation ----------------
-st.success(
-    "Changing ES parameters in the sidebar re-runs the optimization. "
-    "Graphs and performance metrics update dynamically based on the algorithm behaviour."
-)
+# -------------------------------
+# Footer
+# -------------------------------
+st.markdown("---")
+st.markdown("**Course:** JIE42903 – Evolutionary Computing  ")
+st.markdown("**Algorithm:** Evolution Strategy (ES)")
