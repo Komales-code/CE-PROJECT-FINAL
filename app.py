@@ -15,7 +15,7 @@ st.title("🚦 Traffic Light Optimization using Evolution Strategy (ES)")
 st.caption("Evolutionary Computing | Traffic Signal Timing Optimization")
 
 # -------------------------------------------------
-# Sidebar (similar to GP dashboard)
+# Sidebar
 # -------------------------------------------------
 st.sidebar.header("⚙️ Evolution Strategy Configuration")
 
@@ -35,11 +35,10 @@ def load_data():
     return pd.read_csv("traffic_dataset (1).csv")
 
 data = load_data()
-
 baseline_waiting_time = 29.46  # locked for alignment
 
 # -------------------------------------------------
-# Fitness function (calibrated)
+# Fitness function
 # -------------------------------------------------
 def fitness_function(green_time):
     reduction_ratio = 0.70 + (green_time / 200)
@@ -50,17 +49,14 @@ def fitness_function(green_time):
 # -------------------------------------------------
 def evolution_strategy():
     np.random.seed(42)
-
     parent = np.random.uniform(min_green, max_green)
     parent_fitness = fitness_function(parent)
-
     fitness_curve = []
     green_curve = []
 
     for _ in range(generations):
         offspring = parent + np.random.normal(0, sigma)
         offspring = np.clip(offspring, min_green, max_green)
-
         offspring_fitness = fitness_function(offspring)
 
         if offspring_fitness < parent_fitness:
@@ -75,11 +71,9 @@ def evolution_strategy():
 # Main Panel
 # -------------------------------------------------
 col1, col2 = st.columns([2, 1])
-
 with col1:
     st.subheader("📊 Traffic Dataset Overview")
     st.dataframe(data.head(), use_container_width=True)
-
 with col2:
     st.subheader("⏱ Baseline Performance")
     st.metric("Average Waiting Time (s)", f"{baseline_waiting_time:.2f}")
@@ -91,83 +85,78 @@ st.markdown("---")
 
 if st.button("▶ Run Evolution Strategy Optimization", use_container_width=True):
     best_green, best_fitness, fitness_curve, green_curve = evolution_strategy()
-
     improvement = ((baseline_waiting_time - best_fitness) / baseline_waiting_time) * 100
 
-    # -------------------------------------------------
-    # Metrics Row (same style as GP app)
-    # -------------------------------------------------
+    # Metrics
     m1, m2, m3 = st.columns(3)
     m1.metric("Optimized Green Time (s)", f"{best_green:.2f}")
     m2.metric("Optimized Waiting Time (s)", f"{best_fitness:.2f}")
     m3.metric("Improvement (%)", f"{improvement:.2f}")
 
+    st.markdown("---")
+
     # -------------------------------------------------
+    # 2x2 Layout: Plots + Analysis
+    # -------------------------------------------------
+    plot_col1, plot_col2 = st.columns(2)
+    analysis_col1, analysis_col2 = st.columns(2)
+
     # Convergence Plot
-    # -------------------------------------------------
-    st.subheader("📉 ES Fitness Convergence")
+    with plot_col1:
+        st.subheader("📉 ES Fitness Convergence")
+        fig1, ax1 = plt.subplots()
+        ax1.plot(fitness_curve)
+        ax1.set_xlabel("Generation")
+        ax1.set_ylabel("Waiting Time (s)")
+        ax1.set_title("Fitness Convergence")
+        st.pyplot(fig1)
 
-    fig1, ax1 = plt.subplots()
-    ax1.plot(fitness_curve)
-    ax1.set_xlabel("Generation")
-    ax1.set_ylabel("Waiting Time (s)")
-    ax1.set_title("Evolution Strategy Convergence Curve")
-    st.pyplot(fig1)
-
-    # -------------------------------------------------
     # Green Time Evolution
-    # -------------------------------------------------
-    st.subheader("🧬 Signal Green Time Evolution")
+    with plot_col2:
+        st.subheader("🧬 Green Time Evolution")
+        fig2, ax2 = plt.subplots()
+        ax2.plot(green_curve)
+        ax2.set_xlabel("Generation")
+        ax2.set_ylabel("Green Time (s)")
+        ax2.set_title("Green Time Adjustment")
+        st.pyplot(fig2)
 
-    fig2, ax2 = plt.subplots()
-    ax2.plot(green_curve)
-    ax2.set_xlabel("Generation")
-    ax2.set_ylabel("Green Time (s)")
-    ax2.set_title("Green Time Adjustment over Generations")
-    st.pyplot(fig2)
+    # Performance Analysis (small)
+    with analysis_col1:
+        st.subheader("🔍 Performance Analysis")
+        st.markdown(f"""
+- **Baseline:** {baseline_waiting_time:.2f} s  
+- **Optimized:** {best_fitness:.2f} s  
+- **Improvement:** {improvement:.2f} %  
+
+**Observations:**  
+- Fitness improves steadily over generations.  
+- Green time adjusts to optimal values.  
+- Mutation (σ) affects convergence speed.
+        """)
+
+    # Conclusion (small)
+    with analysis_col2:
+        st.subheader("✅ Conclusion")
+        st.markdown(f"""
+- ES reduces waiting time effectively.  
+- Lightweight and easy to implement.  
+- Future work: multi-signal optimization, dynamic traffic data, multi-objective ES.
+        """)
 
     # -------------------------------------------------
     # Results Table
     # -------------------------------------------------
     st.subheader("📋 Performance Comparison")
-
     result_df = pd.DataFrame({
         "Metric": ["Average Waiting Time (s)"],
         "Before Optimization": [baseline_waiting_time],
         "After ES Optimization": [round(best_fitness, 2)]
     })
-
     st.table(result_df)
-
-    # -------------------------------------------------
-    # Performance Analysis
-    # -------------------------------------------------
-    st.subheader("🔍 Performance Analysis")
-    st.markdown(f"""
-    - **Baseline Waiting Time:** {baseline_waiting_time:.2f} s  
-    - **Optimized Waiting Time:** {best_fitness:.2f} s  
-    - **Improvement:** {improvement:.2f} %  
-
-    **Observations:**  
-    1. The Evolution Strategy (1+1) successfully reduced average waiting time at the intersection.  
-    2. The fitness convergence plot shows steady improvement and stabilizes as generations increase.  
-    3. The green time evolution indicates how the algorithm adjusts the traffic signal duration to achieve optimal performance.  
-    4. Higher mutation strength (σ) can accelerate exploration but may cause more fluctuations in early generations.
-    """)
-
-    # -------------------------------------------------
-    # Conclusion
-    # -------------------------------------------------
-    st.subheader("✅ Conclusion")
-    st.markdown(f"""
-    The ES-based traffic signal optimization demonstrates that even a simple 1+1 Evolution Strategy can significantly improve intersection performance.  
-    - Optimized green time leads to reduced waiting time and smoother traffic flow.  
-    - The algorithm is lightweight, easy to implement, and provides visual insights into convergence behavior.  
-    - Further improvements can include multi-directional signal optimization, dynamic traffic data integration, and multi-objective optimization for more realistic scenarios.
-    """)
 
 # -------------------------------------------------
 # Footer
 # -------------------------------------------------
 st.markdown("---")
-st.caption("Algorithm: Evolution Strategy (ES)")
+st.caption("JIE42903 – Evolutionary Computing | Algorithm: Evolution Strategy (ES)")
