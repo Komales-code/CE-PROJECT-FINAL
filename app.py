@@ -19,7 +19,7 @@ st.write("This application optimizes traffic signal green time to reduce congest
 # -------------------------------
 @st.cache_data
 def load_data():
-    return pd.read_csv("traffic_dataset (1).csv")
+    return pd.read_csv("traffic_dataset.csv")
 
 data = load_data()
 
