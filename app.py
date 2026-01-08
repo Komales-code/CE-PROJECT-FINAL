@@ -1,162 +1,157 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
-# -------------------------------------------------
-# Page config
-# -------------------------------------------------
-st.set_page_config(
-    page_title="Traffic Light Optimization – ES",
-    layout="wide"
-)
+# -----------------------------------
+# Page Configuration
+# -----------------------------------
+st.set_page_config(page_title="Traffic Light Optimization using ES", layout="wide")
 
 st.title("🚦 Traffic Light Optimization using Evolution Strategy (ES)")
-st.caption("Evolutionary Computing | Traffic Signal Timing Optimization")
+st.caption("JIE42903 – Evolutionary Computing | (1+1)-Evolution Strategy")
 
-# -------------------------------------------------
-# Sidebar
-# -------------------------------------------------
+# -----------------------------------
+# Sidebar – ES Configuration
+# -----------------------------------
 st.sidebar.header("⚙️ Evolution Strategy Configuration")
 
 generations = st.sidebar.slider("Generations", 50, 200, 100)
 sigma = st.sidebar.slider("Mutation Strength (σ)", 0.1, 5.0, 1.0)
-min_green = st.sidebar.slider("Min Green Time (s)", 10, 30, 15)
+
+min_green = st.sidebar.slider("Min Green Time (s)", 10, 30, 10)
 max_green = st.sidebar.slider("Max Green Time (s)", 40, 120, 60)
 
-st.sidebar.markdown("---")
-st.sidebar.info("Objective: Minimize average waiting time")
+st.sidebar.markdown("**Objective:** Minimize Average Waiting Time")
 
-# -------------------------------------------------
-# Load dataset
-# -------------------------------------------------
-@st.cache_data
-def load_data():
-    return pd.read_csv("traffic_dataset (1).csv")
+# -----------------------------------
+# Traffic Simulation Functions
+# -----------------------------------
+def simulate_traffic(green_time):
+    """
+    Simulates traffic performance based on green time
+    """
+    arrival_rate = 0.5  # vehicles per second
+    service_rate = green_time / max_green
 
-data = load_data()
-baseline_waiting_time = 29.46  # locked for alignment
+    waiting_time = max(5, 40 - (green_time * 0.8)) + np.random.normal(0, 1)
+    queue_length = max(1, int(arrival_rate * waiting_time))
+    throughput = int(service_rate * 3600)
 
-# -------------------------------------------------
-# Fitness function
-# -------------------------------------------------
-def fitness_function(green_time):
-    reduction_ratio = 0.70 + (green_time / 200)
-    return baseline_waiting_time * reduction_ratio
+    return waiting_time, queue_length, throughput
 
-# -------------------------------------------------
-# Evolution Strategy (1+1)
-# -------------------------------------------------
-def evolution_strategy():
-    np.random.seed(42)
-    parent = np.random.uniform(min_green, max_green)
-    parent_fitness = fitness_function(parent)
-    fitness_curve = []
-    green_curve = []
 
-    for _ in range(generations):
-        offspring = parent + np.random.normal(0, sigma)
-        offspring = np.clip(offspring, min_green, max_green)
-        offspring_fitness = fitness_function(offspring)
+def fitness(green_time):
+    waiting_time, _, _ = simulate_traffic(green_time)
+    return waiting_time
 
-        if offspring_fitness < parent_fitness:
-            parent, parent_fitness = offspring, offspring_fitness
 
-        fitness_curve.append(parent_fitness)
-        green_curve.append(parent)
+# -----------------------------------
+# (1+1)-Evolution Strategy
+# -----------------------------------
+green = np.random.uniform(min_green, max_green)
+fitness_val = fitness(green)
 
-    return parent, parent_fitness, fitness_curve, green_curve
+fitness_history = []
+green_history = []
 
-# -------------------------------------------------
-# Main Panel
-# -------------------------------------------------
-col1, col2 = st.columns([2, 1])
-with col1:
-    st.subheader("📊 Traffic Dataset Overview")
-    st.dataframe(data.head(), use_container_width=True)
-with col2:
-    st.subheader("⏱ Baseline Performance")
-    st.metric("Average Waiting Time (s)", f"{baseline_waiting_time:.2f}")
+for _ in range(generations):
+    offspring = green + np.random.normal(0, sigma)
+    offspring = np.clip(offspring, min_green, max_green)
 
-# -------------------------------------------------
-# Run Optimization
-# -------------------------------------------------
-st.markdown("---")
+    offspring_fitness = fitness(offspring)
 
-if st.button("▶ Run Evolution Strategy Optimization", use_container_width=True):
-    best_green, best_fitness, fitness_curve, green_curve = evolution_strategy()
-    improvement = ((baseline_waiting_time - best_fitness) / baseline_waiting_time) * 100
+    if offspring_fitness < fitness_val:
+        green = offspring
+        fitness_val = offspring_fitness
 
-    # Metrics
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Optimized Green Time (s)", f"{best_green:.2f}")
-    m2.metric("Optimized Waiting Time (s)", f"{best_fitness:.2f}")
-    m3.metric("Improvement (%)", f"{improvement:.2f}")
+    fitness_history.append(fitness_val)
+    green_history.append(green)
 
-    st.markdown("---")
+# -----------------------------------
+# Baseline vs Optimized Performance
+# -----------------------------------
+baseline_green = 40
+baseline_wait, baseline_queue, baseline_throughput = simulate_traffic(baseline_green)
 
-    # -------------------------------------------------
-    # 2x2 Layout: Plots + Analysis
-    # -------------------------------------------------
-    plot_col1, plot_col2 = st.columns(2)
-    analysis_col1, analysis_col2 = st.columns(2)
+opt_wait, opt_queue, opt_throughput = simulate_traffic(green)
 
-    # Convergence Plot
-    with plot_col1:
-        st.subheader("📉 ES Fitness Convergence")
-        fig1, ax1 = plt.subplots()
-        ax1.plot(fitness_curve)
-        ax1.set_xlabel("Generation")
-        ax1.set_ylabel("Waiting Time (s)")
-        ax1.set_title("Fitness Convergence")
-        st.pyplot(fig1)
+improvement = ((baseline_wait - opt_wait) / baseline_wait) * 100
 
-    # Green Time Evolution
-    with plot_col2:
-        st.subheader("🧬 Green Time Evolution")
-        fig2, ax2 = plt.subplots()
-        ax2.plot(green_curve)
-        ax2.set_xlabel("Generation")
-        ax2.set_ylabel("Green Time (s)")
-        ax2.set_title("Green Time Adjustment")
-        st.pyplot(fig2)
+# -----------------------------------
+# Dashboard Metrics
+# -----------------------------------
+st.subheader("📊 Performance Overview")
 
-    # Performance Analysis (small)
-    with analysis_col1:
-        st.subheader("🔍 Performance Analysis")
-        st.markdown(f"""
-- **Baseline:** {baseline_waiting_time:.2f} s  
-- **Optimized:** {best_fitness:.2f} s  
-- **Improvement:** {improvement:.2f} %  
+col1, col2, col3, col4 = st.columns(4)
 
-**Observations:**  
-- Fitness improves steadily over generations.  
-- Green time adjusts to optimal values.  
-- Mutation (σ) affects convergence speed.
-        """)
+col1.metric("Baseline Waiting Time (s)", f"{baseline_wait:.2f}")
+col2.metric("Optimized Waiting Time (s)", f"{opt_wait:.2f}", f"{improvement:.2f}%")
+col3.metric("Mean Queue Length (veh)", f"{opt_queue}")
+col4.metric("Throughput (veh/hr)", f"{opt_throughput}")
 
-    # Conclusion (small)
-    with analysis_col2:
-        st.subheader("✅ Conclusion")
-        st.markdown(f"""
-- ES reduces waiting time effectively.  
-- Lightweight and easy to implement.  
-- Future work: multi-signal optimization, dynamic traffic data, multi-objective ES.
-        """)
+# -----------------------------------
+# Fitness Convergence Plot
+# -----------------------------------
+st.subheader("📉 ES Fitness Convergence")
 
-    # -------------------------------------------------
-    # Results Table
-    # -------------------------------------------------
-    st.subheader("📋 Performance Comparison")
-    result_df = pd.DataFrame({
-        "Metric": ["Average Waiting Time (s)"],
-        "Before Optimization": [baseline_waiting_time],
-        "After ES Optimization": [round(best_fitness, 2)]
-    })
-    st.table(result_df)
+fig1 = plt.figure()
+plt.plot(fitness_history)
+plt.xlabel("Generation")
+plt.ylabel("Average Waiting Time (s)")
+plt.title("Fitness Convergence")
+st.pyplot(fig1)
 
-# -------------------------------------------------
-# Footer
-# -------------------------------------------------
-st.markdown("---")
-st.caption("JIE42903 – Evolutionary Computing | Algorithm: Evolution Strategy (ES)")
+# -----------------------------------
+# Green Time Evolution Plot
+# -----------------------------------
+st.subheader("🧬 Green Time Evolution")
+
+fig2 = plt.figure()
+plt.plot(green_history)
+plt.xlabel("Generation")
+plt.ylabel("Green Time (s)")
+plt.title("Evolution of Green Time")
+st.pyplot(fig2)
+
+# -----------------------------------
+# Performance Comparison Table
+# -----------------------------------
+st.subheader("📋 Performance Comparison")
+
+df = pd.DataFrame({
+    "Metric": [
+        "Average Waiting Time (s)",
+        "Mean Queue Length (veh)",
+        "Traffic Throughput (veh/hr)"
+    ],
+    "Before Optimization": [
+        round(baseline_wait, 2),
+        baseline_queue,
+        baseline_throughput
+    ],
+    "After ES Optimization": [
+        round(opt_wait, 2),
+        opt_queue,
+        opt_throughput
+    ]
+})
+
+st.dataframe(df, use_container_width=True)
+
+# -----------------------------------
+# Conclusion
+# -----------------------------------
+st.subheader("✅ Conclusion")
+
+st.markdown("""
+- Evolution Strategy effectively reduces average vehicle waiting time.
+- Queue length and traffic throughput improve after optimization.
+- ES shows stable convergence and is computationally efficient.
+- Suitable for traffic signal optimization problems.
+
+**Future Work:**
+- Multi-intersection optimization  
+- Real-time traffic data  
+- Multi-objective ES (delay, emissions, fuel)
+""")
