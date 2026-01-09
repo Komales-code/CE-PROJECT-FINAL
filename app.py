@@ -3,6 +3,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# --------------------------------------------------
+# Dataset
+# --------------------------------------------------
+@st.cache_data
+def load_data():
+    return pd.read_csv("traffic_dataset.csv")
+
+df = load_data()
+
+st.subheader("Traffic Dataset Preview")
+st.dataframe(df.head())
+
 # -----------------------------------
 # Page Configuration
 # -----------------------------------
