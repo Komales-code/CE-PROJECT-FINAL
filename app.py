@@ -95,6 +95,17 @@ if run_opt:
     opt_wait, opt_queue, opt_throughput = simulate_traffic(best_solution)
     improvement = ((baseline_wait - opt_wait) / baseline_wait) * 100
 
+    
+    # -----------------------------------
+    # Dashboard Metrics
+    # -----------------------------------
+    st.subheader("📊 Performance Overview")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Baseline Waiting Time (s)", f"{baseline_wait:.2f}")
+    col2.metric("Optimized Waiting Time (s)", f"{opt_wait:.2f}", f"{improvement:.2f}%")
+    col3.metric("Mean Queue Length (veh)", f"{opt_queue}")
+    col4.metric("Throughput (veh/hr)", f"{opt_throughput}")
+
     # -------------------
     # Side-by-Side Plots: Convergence & Green Time
     # -------------------
