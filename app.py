@@ -78,26 +78,30 @@ col3.metric("Mean Queue Length (veh)", f"{opt_queue}")
 col4.metric("Throughput (veh/hr)", f"{opt_throughput}")
 
 # -----------------------------------
-# Fitness Convergence Plot
+# Side-by-Side Plots: Fitness Convergence & Green Time Evolution
 # -----------------------------------
-st.subheader("📉 ES Fitness Convergence")
-fig1, ax1 = plt.subplots()
-ax1.plot(fitness_history, marker='o', color='blue')
-ax1.set_xlabel("Generation")
-ax1.set_ylabel("Average Waiting Time (s)")
-ax1.set_title("Fitness Convergence Over Generations")
-st.pyplot(fig1)
+st.subheader("📉 ES Performance Visualization")
 
-# -----------------------------------
+col1, col2 = st.columns(2)  # Create two columns for side-by-side plots
+
+# Convergence Plot
+with col1:
+    fig1, ax1 = plt.subplots(figsize=(5,3))  # Smaller figure size
+    ax1.plot(fitness_history, marker='o', color='blue')
+    ax1.set_xlabel("Generation")
+    ax1.set_ylabel("Average Waiting Time (s)")
+    ax1.set_title("Fitness Convergence")
+    st.pyplot(fig1)
+
 # Green Time Evolution Plot
-# -----------------------------------
-st.subheader("🧬 Green Time Evolution")
-fig2, ax2 = plt.subplots()
-ax2.plot(green_history, marker='o', color='green')
-ax2.set_xlabel("Generation")
-ax2.set_ylabel("Green Time (s)")
-ax2.set_title("Evolution of Green Signal Duration")
-st.pyplot(fig2)
+with col2:
+    fig2, ax2 = plt.subplots(figsize=(5,3))  # Smaller figure size
+    ax2.plot(green_history, marker='o', color='green')
+    ax2.set_xlabel("Generation")
+    ax2.set_ylabel("Green Time (s)")
+    ax2.set_title("Green Time Evolution")
+    st.pyplot(fig2)
+
 
 # -----------------------------------
 # Performance Comparison Table
