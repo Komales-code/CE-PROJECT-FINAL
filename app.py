@@ -119,55 +119,6 @@ if run_opt:
     st.dataframe(df, use_container_width=True)
 
     # -------------------
-    # Extended Analysis – Multi-objective
-    # -------------------
-    st.subheader("🔬 Extended Analysis – Multi-Objective Optimization")
-
-    st.markdown("""
-    Using **multi-objective ES**, we optimize traffic signals considering:
-    1. Average Waiting Time (s)
-    2. Mean Queue Length (vehicles)
-    """)
-
-    # Optional: sliders to adjust weights
-    st.markdown("**Adjust Objective Weights:**")
-    w1 = st.slider("Weight for Waiting Time", 0.0, 1.0, 0.5)
-    w2 = st.slider("Weight for Queue Length", 0.0, 1.0, 0.5)
-    if w1 + w2 == 0:
-        w2 = 0.5
-        w1 = 0.5
-
-    # Generate Pareto solutions
-    n_pareto = 50
-    pareto_wait = []
-    pareto_queue = []
-    pareto_green = []
-
-    for _ in range(n_pareto):
-        green_candidate = np.random.uniform(min_green, max_green)
-        _, wait, queue = fitness_multi(green_candidate, w1, w2)
-        pareto_wait.append(wait)
-        pareto_queue.append(queue)
-        pareto_green.append(green_candidate)
-
-    # Plot Pareto front
-    fig3, ax3 = plt.subplots(figsize=(6,4))
-    ax3.scatter(pareto_wait, pareto_queue, c='purple', alpha=0.7)
-    ax3.set_xlabel("Average Waiting Time (s)")
-    ax3.set_ylabel("Mean Queue Length (veh)")
-    ax3.set_title("Pareto Front – Multi-Objective Trade-off")
-    st.pyplot(fig3)
-
-    # Show sample Pareto solutions
-    st.subheader("📑 Sample Multi-Objective Solutions")
-    df_pareto = pd.DataFrame({
-        "Green Time (s)": np.round(pareto_green, 2),
-        "Average Waiting Time (s)": np.round(pareto_wait, 2),
-        "Queue Length (veh)": np.round(pareto_queue, 2)
-    })
-    st.dataframe(df_pareto, use_container_width=True)
-
-    # -------------------
     # Performance Analysis
     # -------------------
     st.subheader("📈 Performance Analysis")
@@ -178,7 +129,17 @@ if run_opt:
 - **Multi-objective ES:** Provides Pareto front of solutions showing trade-offs between waiting time and queue length.
 - Decision-makers can select **green time solutions** based on traffic priorities.
 """)
-
+    
+# -------------------
+# Extended Analysis Description
+# -------------------
+st.markdown("""
+**Extended Analysis – Multi-Objective Optimization:**  
+- The ES algorithm can be extended to optimize multiple objectives simultaneously, such as **minimizing average waiting time** and **reducing queue length**.  
+- By considering multiple objectives, the algorithm produces a set of **trade-off solutions** (Pareto front), allowing decision-makers to select the most suitable green time plan based on traffic priorities.  
+- This approach enables the algorithm to **adapt to competing goals**, balancing efficiency and congestion reduction, and provides **robust solutions** for complex traffic scenarios.  
+- Inclusion of multi-objective optimization enhances the **overall solution quality** and flexibility of traffic signal control.
+""")
     # -------------------
     # Conclusion
     # -------------------
