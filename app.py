@@ -130,16 +130,16 @@ if run_opt:
 - Decision-makers can select **green time solutions** based on traffic priorities.
 """)
     
-# -------------------
-# Extended Analysis Description
-# -------------------
-st.markdown("""
-**Extended Analysis – Multi-Objective Optimization:**  
-- The ES algorithm can be extended to optimize multiple objectives simultaneously, such as **minimizing average waiting time** and **reducing queue length**.  
-- By considering multiple objectives, the algorithm produces a set of **trade-off solutions** (Pareto front), allowing decision-makers to select the most suitable green time plan based on traffic priorities.  
-- This approach enables the algorithm to **adapt to competing goals**, balancing efficiency and congestion reduction, and provides **robust solutions** for complex traffic scenarios.  
-- Inclusion of multi-objective optimization enhances the **overall solution quality** and flexibility of traffic signal control.
-""")
+    # -------------------
+    # Extended Analysis Description
+    # -------------------
+    st.markdown("""
+    **Extended Analysis – Multi-Objective Optimization:**  
+    - The ES algorithm can be extended to optimize multiple objectives simultaneously, such as **minimizing average waiting time** and **reducing queue length**.  
+    - By considering multiple objectives, the algorithm produces a set of **trade-off solutions** (Pareto front), allowing decision-makers to select the most suitable green time plan based on traffic priorities.  
+    - This approach enables the algorithm to **adapt to competing goals**, balancing efficiency and congestion reduction, and provides **robust solutions** for complex traffic scenarios.  
+    - Inclusion of multi-objective optimization enhances the **overall solution quality** and flexibility of traffic signal control.
+    """)
     # -------------------
     # Conclusion
     # -------------------
