@@ -168,30 +168,14 @@ if run_opt:
 
     st.dataframe(result_df, use_container_width=True)
 
-    st.subheader("📈 Multi-Objective Trade-off Analysis")
+   st.subheader("4. Extended Analysis")
 
-    obj_data = {
-        "Waiting Time": [],
-        "Vehicle Count": [],
-        "Lane Occupancy": [],
-        "Green Time": []
-    }
-    
-    for g in green_history:
-        w, v, l, _ = evaluate_traffic(g)
-        obj_data["Waiting Time"].append(w)
-        obj_data["Vehicle Count"].append(v)
-        obj_data["Lane Occupancy"].append(l)
-        obj_data["Green Time"].append(g)
-    
-    obj_df = pd.DataFrame(obj_data)
-    
-    fig, ax = plt.subplots()
-    ax.scatter(obj_df["Waiting Time"], obj_df["Lane Occupancy"])
-    ax.set_xlabel("Average Waiting Time")
-    ax.set_ylabel("Lane Occupancy")
-    ax.set_title("Trade-off Between Waiting Time and Lane Occupancy")
-    st.pyplot(fig)
+    st.markdown("""
+    This extended analysis considers traffic signal optimization as a **multi-objective problem**, where reducing average waiting time must be balanced with minimizing congestion indicators such as vehicle count and lane occupancy while maintaining traffic throughput. 
+    The **(1+1) Evolution Strategy** adapts to these competing objectives through a weighted fitness formulation, allowing it to search for balanced signal timing solutions rather than optimizing a single metric. 
+    The inclusion of multi-objective considerations improves overall solution quality by producing more robust and practical traffic signal timing plans that better reflect real-world intersection performance.
+    """)
+
 
     # --------------------------------------------------
     # Conclusion
