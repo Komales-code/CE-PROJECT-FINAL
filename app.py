@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🚦 Traffic Light Optimization using Evolution Strategy (ES)")
-st.caption("Dataset-based optimization of traffic signal timing")
+st.caption("Dataset-driven optimization of traffic signal timing")
 
 # --------------------------------------------------
 # Load Dataset
@@ -27,18 +27,12 @@ st.subheader("📂 Traffic Dataset Preview")
 st.dataframe(df.head())
 
 # --------------------------------------------------
-# ⚠️ DEFINE DATASET COLUMNS HERE (EDIT IF NEEDED)
+# Dataset Statistics (USED IN OPTIMIZATION)
 # --------------------------------------------------
-ARRIVAL_COL = "arrival_rate"        # vehicles per second / minute
-WAIT_COL    = "avg_waiting_time"    # seconds
-QUEUE_COL   = "queue_length"        # vehicles
-
-# --------------------------------------------------
-# Baseline Statistics from Dataset
-# --------------------------------------------------
-baseline_arrival = df[ARRIVAL_COL].mean()
-baseline_wait    = df[WAIT_COL].mean()
-baseline_queue   = df[QUEUE_COL].mean()
+avg_waiting_time = df["waiting_time"].mean()
+avg_vehicle_count = df["vehicle_count"].mean()
+avg_lane_occupancy = df["lane_occupancy"].mean()
+avg_flow_rate = df["flow_rate"].mean()
 
 # --------------------------------------------------
 # Sidebar – ES Parameters
@@ -51,49 +45,46 @@ sigma = st.sidebar.slider("Mutation Step Size (σ)", 0.1, 5.0, 1.0)
 min_green = st.sidebar.slider("Minimum Green Time (s)", 10, 30, 15)
 max_green = st.sidebar.slider("Maximum Green Time (s)", 40, 120, 60)
 
-st.sidebar.markdown(
-    "**Objective:** Minimize waiting time and queue length"
-)
-
-run_opt = st.sidebar.button("🚀 Run ES Optimization")
+run_opt = st.sidebar.button("🚀 Run Optimization")
 
 # --------------------------------------------------
 # Traffic Evaluation Function (DATASET-BASED)
 # --------------------------------------------------
 def evaluate_traffic(green_time):
     """
-    Dataset-based traffic evaluation.
-    Green time scales service efficiency.
+    Green time affects service efficiency.
+    Higher green time reduces waiting and congestion.
     """
     service_factor = green_time / max_green
 
-    waiting_time = baseline_wait * (1 / service_factor)
-    queue_length = baseline_queue * (1 / service_factor)
-    throughput   = baseline_arrival * service_factor * 3600
+    waiting_time = avg_waiting_time / service_factor
+    vehicle_count = avg_vehicle_count * (1 / service_factor)
+    lane_occupancy = avg_lane_occupancy * (1 / service_factor)
+    throughput = avg_flow_rate * service_factor
 
-    return waiting_time, queue_length, throughput
-
-# --------------------------------------------------
-# Fitness Function (Multi-objective Weighted Sum)
-# --------------------------------------------------
-def fitness(green_time, w1=0.6, w2=0.4):
-    wait, queue, _ = evaluate_traffic(green_time)
-    return w1 * wait + w2 * queue
+    return waiting_time, vehicle_count, lane_occupancy, throughput
 
 # --------------------------------------------------
-# Run Optimization
+# Fitness Function (Weighted Multi-Objective)
+# --------------------------------------------------
+def fitness(green_time):
+    wait, veh, lane, _ = evaluate_traffic(green_time)
+    return 0.6 * wait + 0.25 * veh + 0.15 * lane
+
+# --------------------------------------------------
+# Run Evolution Strategy
 # --------------------------------------------------
 if run_opt:
     st.subheader("⚙️ Optimization Results")
 
     # ---------------- Baseline ----------------
-    base_wait, base_queue, base_throughput = evaluate_traffic(40)
+    base_wait, base_veh, base_lane, base_throughput = evaluate_traffic(40)
 
     # ---------------- ES Initialization ----------------
     green = np.random.uniform(min_green, max_green)
-    fit = fitness(green)
+    best_fitness = fitness(green)
 
-    fitness_history = [fit]
+    fitness_history = [best_fitness]
     green_history = [green]
 
     # ---------------- (1+1)-Evolution Strategy ----------------
@@ -101,16 +92,17 @@ if run_opt:
         offspring = green + np.random.normal(0, sigma)
         offspring = np.clip(offspring, min_green, max_green)
 
-        off_fit = fitness(offspring)
+        offspring_fitness = fitness(offspring)
 
-        if off_fit <= fit:
-            green, fit = offspring, off_fit
+        if offspring_fitness <= best_fitness:
+            green = offspring
+            best_fitness = offspring_fitness
 
-        fitness_history.append(fit)
+        fitness_history.append(best_fitness)
         green_history.append(green)
 
     # ---------------- Optimized Results ----------------
-    opt_wait, opt_queue, opt_throughput = evaluate_traffic(green)
+    opt_wait, opt_veh, opt_lane, opt_throughput = evaluate_traffic(green)
 
     improvement = ((base_wait - opt_wait) / base_wait) * 100
 
@@ -120,16 +112,15 @@ if run_opt:
     st.subheader("📊 Performance Overview")
 
     col1, col2, col3, col4 = st.columns(4)
-
     col1.metric("Baseline Waiting Time (s)", f"{base_wait:.2f}")
     col2.metric("Optimized Waiting Time (s)", f"{opt_wait:.2f}", f"{improvement:.2f}%")
-    col3.metric("Queue Length (veh)", f"{opt_queue:.2f}")
-    col4.metric("Throughput (veh/hr)", f"{opt_throughput:.0f}")
+    col3.metric("Lane Occupancy (%)", f"{opt_lane:.2f}")
+    col4.metric("Traffic Throughput", f"{opt_throughput:.0f}")
 
     # --------------------------------------------------
     # Convergence & Green Time Evolution
     # --------------------------------------------------
-    st.subheader("📉 Evolution Strategy Performance")
+    st.subheader("📉 ES Convergence Analysis")
 
     col1, col2 = st.columns(2)
 
@@ -150,24 +141,27 @@ if run_opt:
         st.pyplot(fig2)
 
     # --------------------------------------------------
-    # Comparison Table
+    # Performance Comparison Table
     # --------------------------------------------------
     st.subheader("📋 Performance Comparison")
 
     result_df = pd.DataFrame({
         "Metric": [
             "Average Waiting Time (s)",
-            "Mean Queue Length (veh)",
-            "Traffic Throughput (veh/hr)"
+            "Vehicle Count",
+            "Lane Occupancy (%)",
+            "Traffic Throughput"
         ],
-        "Before Optimization": [
+        "Before ES": [
             round(base_wait, 2),
-            round(base_queue, 2),
+            round(base_veh, 2),
+            round(base_lane, 2),
             round(base_throughput, 0)
         ],
-        "After ES Optimization": [
+        "After ES": [
             round(opt_wait, 2),
-            round(opt_queue, 2),
+            round(opt_veh, 2),
+            round(opt_lane, 2),
             round(opt_throughput, 0)
         ]
     })
@@ -179,9 +173,9 @@ if run_opt:
     # --------------------------------------------------
     st.subheader("✅ Conclusion")
     st.markdown("""
-    - The **(1+1)-Evolution Strategy** successfully optimized traffic signal green time.
-    - Optimization was **directly based on real traffic dataset statistics**.
-    - Significant reduction in **waiting time and queue length** was achieved.
-    - Results demonstrate the effectiveness of **evolutionary computation** for traffic signal optimization.
-    - The approach is extensible to **multi-intersection and real-time control** scenarios.
+    - A **(1+1)-Evolution Strategy** was successfully applied to optimize traffic signal green time.
+    - Optimization was **directly based on real traffic dataset characteristics**.
+    - Significant reduction in **waiting time and congestion indicators** was achieved.
+    - Results confirm the suitability of **evolutionary computation** for traffic signal optimization.
+    - The framework can be extended to **multi-intersection and real-time adaptive control**.
     """)
