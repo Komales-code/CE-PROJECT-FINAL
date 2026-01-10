@@ -168,7 +168,7 @@ if run_opt:
 
     st.dataframe(result_df, use_container_width=True)
 
-   st.subheader("4. Extended Analysis")
+    st.subheader("4. Extended Analysis")
 
     st.markdown("""
     This extended analysis considers traffic signal optimization as a **multi-objective problem**, where reducing average waiting time must be balanced with minimizing congestion indicators such as vehicle count and lane occupancy while maintaining traffic throughput. 
