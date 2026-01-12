@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🚦 Traffic Light Optimization using Evolution Strategy (ES)")
-st.caption("Dataset-driven optimization with Multiple Trials & Best-Fitness Analysis")
+st.caption("Dataset-driven optimization with Multiple Trials & Best-Fitness Selection")
 
 # --------------------------------------------------
 # Load Dataset
@@ -40,8 +40,8 @@ avg_flow_rate = df["flow_rate"].mean()
 st.sidebar.header("⚙️ Evolution Strategy Parameters")
 
 generations = st.sidebar.slider("Generations", 50, 300, 100)
-sigma = st.sidebar.slider("Mutation Step Size (σ)", 0.1, 5.0, 1.0)
-num_trials = st.sidebar.slider("Number of Trials", 1, 50, 10)
+sigma = st.sidebar.slider("Base Mutation Step Size (σ)", 0.1, 5.0, 1.0)
+num_trials = st.sidebar.slider("Number of Trials", 5, 50, 10)
 
 min_green = st.sidebar.slider("Minimum Green Time (s)", 10, 30, 15)
 max_green = st.sidebar.slider("Maximum Green Time (s)", 40, 120, 60)
@@ -52,6 +52,10 @@ run_opt = st.sidebar.button("🚀 Run Optimization")
 # Traffic Evaluation Function (DATASET-BASED)
 # --------------------------------------------------
 def evaluate_traffic(green_time):
+    """
+    Higher green time improves service efficiency.
+    Dataset statistics are scaled using a service factor.
+    """
     service_factor = green_time / max_green
 
     waiting_time = avg_waiting_time / service_factor
@@ -66,6 +70,7 @@ def evaluate_traffic(green_time):
 # --------------------------------------------------
 def fitness(green_time):
     wait, veh, lane, _ = evaluate_traffic(green_time)
+    # Multi-objective weighted sum
     return 0.6 * wait + 0.25 * veh + 0.15 * lane
 
 # --------------------------------------------------
@@ -78,6 +83,7 @@ if run_opt:
     baseline_green = 40
     base_wait, base_veh, base_lane, base_throughput = evaluate_traffic(baseline_green)
 
+    # Store best among all trials
     best_overall_fitness = np.inf
     best_overall_green = None
     best_fitness_history = None
@@ -88,18 +94,24 @@ if run_opt:
     # ================= MULTIPLE TRIALS =================
     for trial in range(num_trials):
 
+        # Different sigma for each trial (robustness analysis)
+        trial_sigma = np.random.uniform(0.5 * sigma, 1.5 * sigma)
+
+        # Random initialization
         green = np.random.uniform(min_green, max_green)
         best_fitness = fitness(green)
 
         fitness_history = [best_fitness]
         green_history = [green]
 
+        # -------- (1+1)-Evolution Strategy --------
         for _ in range(generations):
-            offspring = green + np.random.normal(0, sigma)
+            offspring = green + np.random.normal(0, trial_sigma)
             offspring = np.clip(offspring, min_green, max_green)
 
             offspring_fitness = fitness(offspring)
 
+            # Greedy selection
             if offspring_fitness <= best_fitness:
                 green = offspring
                 best_fitness = offspring_fitness
@@ -107,9 +119,15 @@ if run_opt:
             fitness_history.append(best_fitness)
             green_history.append(green)
 
-        trial_results.append((trial+1, best_fitness, green))
+        # Save trial result
+        trial_results.append({
+            "Trial": trial + 1,
+            "Sigma Used": round(trial_sigma, 3),
+            "Best Fitness": round(best_fitness, 4),
+            "Best Green Time (s)": round(green, 2)
+        })
 
-        # Save global best among all trials
+        # Track global best
         if best_fitness < best_overall_fitness:
             best_overall_fitness = best_fitness
             best_overall_green = green
@@ -136,13 +154,16 @@ if run_opt:
     # --------------------------------------------------
     # Trial Results Table
     # --------------------------------------------------
-    st.subheader("📋 Trial-wise Best Fitness Results")
-
-    trial_df = pd.DataFrame(trial_results, columns=["Trial", "Best Fitness", "Best Green Time (s)"])
+    st.subheader("📋 Trial-wise Results with Different Parameter Values")
+    trial_df = pd.DataFrame(trial_results)
     st.dataframe(trial_df, use_container_width=True)
 
-    st.success(f"🏆 Best solution found in Trial {trial_df['Best Fitness'].idxmin()+1} "
-               f"with Green Time = {best_overall_green:.2f}s")
+    best_trial_index = trial_df["Best Fitness"].idxmin()
+    st.success(
+        f"🏆 Best solution found in Trial {trial_df.loc[best_trial_index, 'Trial']} "
+        f"with Green Time = {trial_df.loc[best_trial_index, 'Best Green Time (s)']} s "
+        f"and σ = {trial_df.loc[best_trial_index, 'Sigma Used']}"
+    )
 
     # --------------------------------------------------
     # Convergence & Green Time Evolution (Best Trial)
@@ -152,7 +173,7 @@ if run_opt:
     col1, col2 = st.columns(2)
 
     with col1:
-        fig1, ax1 = plt.subplots(figsize=(5,3))
+        fig1, ax1 = plt.subplots(figsize=(5, 3))
         ax1.plot(best_fitness_history)
         ax1.set_xlabel("Generation")
         ax1.set_ylabel("Fitness Value")
@@ -160,7 +181,7 @@ if run_opt:
         st.pyplot(fig1)
 
     with col2:
-        fig2, ax2 = plt.subplots(figsize=(5,3))
+        fig2, ax2 = plt.subplots(figsize=(5, 3))
         ax2.plot(best_green_history)
         ax2.set_xlabel("Generation")
         ax2.set_ylabel("Green Time (s)")
@@ -200,9 +221,11 @@ if run_opt:
     # --------------------------------------------------
     st.subheader("4. Extended Analysis")
     st.markdown("""
-    Multiple trials demonstrate the **stochastic nature** of Evolution Strategy.  
-    Different runs explore different regions of the solution space, producing varied results.  
-    Selecting the **best fitness among all trials** ensures a robust and reliable optimized signal timing plan.
+    Multiple trials were conducted using different mutation step sizes (σ) and random initial
+    green times to analyze the robustness of the Evolution Strategy.  
+    This demonstrates the stochastic nature of ES and ensures that the final solution is not dependent
+    on a single random run. The best solution is selected as the one achieving the minimum fitness
+    across all trials, improving reliability and optimization quality.
     """)
 
     # --------------------------------------------------
@@ -210,9 +233,9 @@ if run_opt:
     # --------------------------------------------------
     st.subheader("✅ Conclusion")
     st.markdown("""
-    - Multiple ES trials improve reliability and robustness of optimization results.
-    - The best solution is selected based on **global minimum fitness**.
-    - Results show clear reduction in waiting time and congestion indicators.
-    - This validates the suitability of **Evolution Strategy** for traffic signal optimization.
-    - The approach can be extended to **multi-objective and real-time systems**.
+    - Multiple ES trials improve the robustness and reliability of traffic signal optimization.
+    - Different σ values help explore diverse search behaviors and convergence patterns.
+    - The best-fitness selection ensures a scientifically valid optimized green time.
+    - Results confirm the effectiveness of Evolution Strategy for real-world traffic signal control.
+    - The approach can be extended to multi-intersection and real-time adaptive systems.
     """)
