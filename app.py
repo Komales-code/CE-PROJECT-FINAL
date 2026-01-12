@@ -41,7 +41,7 @@ st.sidebar.header("⚙️ Evolution Strategy Parameters")
 
 generations = st.sidebar.slider("Generations", 50, 300, 100)
 sigma = st.sidebar.slider("Mutation Step Size (σ)", 0.1, 5.0, 1.0)
-num_trials = st.sidebar.slider("Number of Trials", 5, 50, 10)
+num_trials = st.sidebar.slider("Number of Trials", 1, 50, 10)
 
 min_green = st.sidebar.slider("Minimum Green Time (s)", 10, 30, 15)
 max_green = st.sidebar.slider("Maximum Green Time (s)", 40, 120, 60)
