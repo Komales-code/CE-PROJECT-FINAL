@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🚦 Traffic Light Optimization using Evolution Strategy (ES)")
-st.caption("Dataset-driven optimization of traffic signal timing")
+st.caption("Dataset-driven optimization with Multiple Trials & Best-Fitness Analysis")
 
 # --------------------------------------------------
 # Load Dataset
@@ -41,6 +41,7 @@ st.sidebar.header("⚙️ Evolution Strategy Parameters")
 
 generations = st.sidebar.slider("Generations", 50, 300, 100)
 sigma = st.sidebar.slider("Mutation Step Size (σ)", 0.1, 5.0, 1.0)
+num_trials = st.sidebar.slider("Number of Trials", 5, 50, 10)
 
 min_green = st.sidebar.slider("Minimum Green Time (s)", 10, 30, 15)
 max_green = st.sidebar.slider("Maximum Green Time (s)", 40, 120, 60)
@@ -51,10 +52,6 @@ run_opt = st.sidebar.button("🚀 Run Optimization")
 # Traffic Evaluation Function (DATASET-BASED)
 # --------------------------------------------------
 def evaluate_traffic(green_time):
-    """
-    Green time affects service efficiency.
-    Higher green time reduces waiting and congestion.
-    """
     service_factor = green_time / max_green
 
     waiting_time = avg_waiting_time / service_factor
@@ -72,44 +69,63 @@ def fitness(green_time):
     return 0.6 * wait + 0.25 * veh + 0.15 * lane
 
 # --------------------------------------------------
-# Run Evolution Strategy
+# Run Evolution Strategy with Multiple Trials
 # --------------------------------------------------
 if run_opt:
-    st.subheader("⚙️ Optimization Results")
+    st.subheader("⚙️ Optimization Results (Multiple Trials)")
 
     # ---------------- Baseline ----------------
-    base_wait, base_veh, base_lane, base_throughput = evaluate_traffic(40)
+    baseline_green = 40
+    base_wait, base_veh, base_lane, base_throughput = evaluate_traffic(baseline_green)
 
-    # ---------------- ES Initialization ----------------
-    green = np.random.uniform(min_green, max_green)
-    best_fitness = fitness(green)
+    best_overall_fitness = np.inf
+    best_overall_green = None
+    best_fitness_history = None
+    best_green_history = None
 
-    fitness_history = [best_fitness]
-    green_history = [green]
+    trial_results = []
 
-    # ---------------- (1+1)-Evolution Strategy ----------------
-    for _ in range(generations):
-        offspring = green + np.random.normal(0, sigma)
-        offspring = np.clip(offspring, min_green, max_green)
+    # ================= MULTIPLE TRIALS =================
+    for trial in range(num_trials):
 
-        offspring_fitness = fitness(offspring)
+        green = np.random.uniform(min_green, max_green)
+        best_fitness = fitness(green)
 
-        if offspring_fitness <= best_fitness:
-            green = offspring
-            best_fitness = offspring_fitness
+        fitness_history = [best_fitness]
+        green_history = [green]
 
-        fitness_history.append(best_fitness)
-        green_history.append(green)
+        for _ in range(generations):
+            offspring = green + np.random.normal(0, sigma)
+            offspring = np.clip(offspring, min_green, max_green)
 
-    # ---------------- Optimized Results ----------------
-    opt_wait, opt_veh, opt_lane, opt_throughput = evaluate_traffic(green)
+            offspring_fitness = fitness(offspring)
 
+            if offspring_fitness <= best_fitness:
+                green = offspring
+                best_fitness = offspring_fitness
+
+            fitness_history.append(best_fitness)
+            green_history.append(green)
+
+        trial_results.append((trial+1, best_fitness, green))
+
+        # Save global best among all trials
+        if best_fitness < best_overall_fitness:
+            best_overall_fitness = best_fitness
+            best_overall_green = green
+            best_fitness_history = fitness_history
+            best_green_history = green_history
+
+    # --------------------------------------------------
+    # Best Optimized Result
+    # --------------------------------------------------
+    opt_wait, opt_veh, opt_lane, opt_throughput = evaluate_traffic(best_overall_green)
     improvement = ((base_wait - opt_wait) / base_wait) * 100
 
     # --------------------------------------------------
     # Performance Metrics
     # --------------------------------------------------
-    st.subheader("📊 Performance Overview")
+    st.subheader("📊 Performance Overview (Best Trial)")
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Baseline Waiting Time (s)", f"{base_wait:.2f}")
@@ -118,23 +134,34 @@ if run_opt:
     col4.metric("Traffic Throughput", f"{opt_throughput:.0f}")
 
     # --------------------------------------------------
-    # Convergence & Green Time Evolution
+    # Trial Results Table
     # --------------------------------------------------
-    st.subheader("📉 ES Convergence Analysis")
+    st.subheader("📋 Trial-wise Best Fitness Results")
+
+    trial_df = pd.DataFrame(trial_results, columns=["Trial", "Best Fitness", "Best Green Time (s)"])
+    st.dataframe(trial_df, use_container_width=True)
+
+    st.success(f"🏆 Best solution found in Trial {trial_df['Best Fitness'].idxmin()+1} "
+               f"with Green Time = {best_overall_green:.2f}s")
+
+    # --------------------------------------------------
+    # Convergence & Green Time Evolution (Best Trial)
+    # --------------------------------------------------
+    st.subheader("📉 ES Convergence Analysis (Best Trial)")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        fig1, ax1 = plt.subplots()
-        ax1.plot(fitness_history)
+        fig1, ax1 = plt.subplots(figsize=(5,3))
+        ax1.plot(best_fitness_history)
         ax1.set_xlabel("Generation")
         ax1.set_ylabel("Fitness Value")
         ax1.set_title("Fitness Convergence")
         st.pyplot(fig1)
 
     with col2:
-        fig2, ax2 = plt.subplots()
-        ax2.plot(green_history)
+        fig2, ax2 = plt.subplots(figsize=(5,3))
+        ax2.plot(best_green_history)
         ax2.set_xlabel("Generation")
         ax2.set_ylabel("Green Time (s)")
         ax2.set_title("Green Time Evolution")
@@ -158,7 +185,7 @@ if run_opt:
             round(base_lane, 2),
             round(base_throughput, 0)
         ],
-        "After ES": [
+        "After ES (Best Trial)": [
             round(opt_wait, 2),
             round(opt_veh, 2),
             round(opt_lane, 2),
@@ -168,23 +195,24 @@ if run_opt:
 
     st.dataframe(result_df, use_container_width=True)
 
+    # --------------------------------------------------
+    # Extended Analysis
+    # --------------------------------------------------
     st.subheader("4. Extended Analysis")
-
     st.markdown("""
-    This extended analysis considers traffic signal optimization as a **multi-objective problem**, where reducing average waiting time must be balanced with minimizing congestion indicators such as vehicle count and lane occupancy while maintaining traffic throughput. 
-    The **(1+1) Evolution Strategy** adapts to these competing objectives through a weighted fitness formulation, allowing it to search for balanced signal timing solutions rather than optimizing a single metric. 
-    The inclusion of multi-objective considerations improves overall solution quality by producing more robust and practical traffic signal timing plans that better reflect real-world intersection performance.
+    Multiple trials demonstrate the **stochastic nature** of Evolution Strategy.  
+    Different runs explore different regions of the solution space, producing varied results.  
+    Selecting the **best fitness among all trials** ensures a robust and reliable optimized signal timing plan.
     """)
-
 
     # --------------------------------------------------
     # Conclusion
     # --------------------------------------------------
     st.subheader("✅ Conclusion")
     st.markdown("""
-    - A **(1+1)-Evolution Strategy** was successfully applied to optimize traffic signal green time.
-    - Optimization was **directly based on real traffic dataset characteristics**.
-    - Significant reduction in **waiting time and congestion indicators** was achieved.
-    - Results confirm the suitability of **evolutionary computation** for traffic signal optimization.
-    - The framework can be extended to **multi-intersection and real-time adaptive control**.
+    - Multiple ES trials improve reliability and robustness of optimization results.
+    - The best solution is selected based on **global minimum fitness**.
+    - Results show clear reduction in waiting time and congestion indicators.
+    - This validates the suitability of **Evolution Strategy** for traffic signal optimization.
+    - The approach can be extended to **multi-objective and real-time systems**.
     """)
